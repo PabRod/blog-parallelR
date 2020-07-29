@@ -39,7 +39,7 @@ library(MASS) # Required for loading Boston dataset
 N <- 70
 values <- rep(100, N)
 
-fun <- function(x) rnorm(x)
+fun <- function(x) kmeans(Boston, 4, nstart = x)
 ```
 
 ### A note about the examples
