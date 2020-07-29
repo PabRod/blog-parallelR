@@ -50,7 +50,7 @@ fun <- function(x) {
 
 ```{r define-input}
 # Generate some large integers
-N <- 400 # Number of integers
+N <- 500 # Number of integers
 min <- 10000000000 # Lower bound
 max <- 20000000000 # Upper bound
 
@@ -159,14 +159,14 @@ system.time({
 ```{r}
 i <- 3
 times_df <- data.frame(
-  id = c("Serial loop", "Serial foreach", "Serial lapply", "Par mclapply", "doParallel"),
+  case = c("0.1 Loop", "0.2 foreach", "0.3 lapply", "1 mclapply", "2 doParallel"),
   time = c(time_serial_loop[i], time_serial_foreach[i], time_serial_lapply[i], time_mclapply[i], time_doParallel[i]),
   mode = c("Serial", "Serial", "Serial", "Parallel", "Parallel"),
   stringsAsFactors = TRUE
 )
 
 library(ggplot2)
-ggplot(times_df, aes(x = id, y = time, fill = mode)) + geom_bar(stat = "identity")
+ggplot(times_df, aes(x = case, y = time, fill = mode)) + geom_bar(stat = "identity") + labs(x = "", y = "time (s)", fill = "")
 ```
 
 ## Trying to parallelize non-parallelizable code
