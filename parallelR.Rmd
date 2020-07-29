@@ -20,8 +20,8 @@ The main difference is merely pedagogical. I use a more compact approach and reu
 Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other cores. The number of cores in your computer can be retrieved with the command:
 
 ```{r number-cores}
-nCores <- parallel::detectCores() # Requires library(parallel)
-print(nCores)
+numCores <- parallel::detectCores() # Requires library(parallel)
+print(numCores)
 ```
 
 When a program runs serial (as they usually run by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
@@ -54,7 +54,7 @@ N <- 400 # Number of integers
 min <- 10000000000 # Lower bound
 max <- 20000000000 # Upper bound
 
-inputs <- sample(min:max, N) # List of N integers
+inputs <- sample(min:max, N) # List of N large integers
 ```
 
 In the following examples we will apply the same function to the same input, a vector of `N` large integers. We will do this using different forms of execution (three of them serial, two of them parallel). Later, we'll compare their performance.
@@ -66,11 +66,11 @@ Note: the astute reader may have noticed that our function `fun` is a mere renam
 Please note that, in the following examples, the structure below just times whatever is in `<code>` and stores this information in the variable `execution_time`, and doesn't have an effect on the parallelization.
 
 ```
-system.time(
+system.time({
 
   <code>
   
-) -> execution_time
+}) -> execution_time
 ```
 
 ## Possibility 0: run serial
@@ -78,39 +78,40 @@ system.time(
 ### 0.1 Run serial with a loop:
 
 ```{r serial-loop}
-system.time(
+system.time({
+  
+  results <- rep(NA, N) # Initialize results vector  
   for (i in 1:N) {
-    fun(inputs[i])
+    results[i] <- fun(inputs[i])
   }
-) -> time_serial_loop
-
-print(time_serial_loop)
+  
+}) -> time_serial_loop
 ```
 
 ### 0.2 Run serial with `foreach`
-This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` may be a bit cumbersome, check the parameter `.combine` in the documentation for getting cleaner outputs.
+This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to force it into a vector.
 
 ```{r serial-foreach}
 # Load the required libraries
 library(foreach)
 
-system.time(
-  foreach (val = inputs) %do% {
+system.time({
+  
+  foreach (val = inputs, .combine = "c") %do% {
     fun(val)
-  }
-) -> time_serial_foreach
-
-print(time_serial_foreach)
+  } -> results
+  
+}) -> time_serial_foreach
 ```
 
 ### 0.3 Run serial with `lapply`
 
 ```{r serial-lapply}
-system.time(
+system.time({
+  
   results <- lapply(inputs, fun)
-) -> time_serial_lapply
 
-print(time_serial_lapply)
+}) -> time_serial_lapply
 ```
 
 
@@ -123,12 +124,11 @@ print(time_serial_lapply)
 library(parallel)
 
 # Run parallel
-numCores <- detectCores() # The number of cores is required by mclapply
-system.time(
-  results <- mclapply(inputs, fun, mc.cores = numCores)
-) -> time_mclapply
+system.time({
+  
+  results <- mclapply(inputs, fun, mc.cores = numCores) # Note that the number of cores is required by mclapply
 
-print(time_mclapply)
+}) -> time_mclapply
 ```
 
 Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a non-parallel `lapply`.
@@ -146,13 +146,13 @@ library(doParallel)
 registerDoParallel(numCores)
 
 # Loop
-system.time(
-  foreach(val = inputs) %dopar% {
+system.time({
+  
+  foreach(val = inputs, .combine = "c") %dopar% {
     fun(val)
-  }
-) -> time_doParallel
-
-print(time_doParallel)
+  } -> results
+  
+}) -> time_doParallel
 ```
 
 ## Compare results
