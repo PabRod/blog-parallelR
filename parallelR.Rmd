@@ -34,8 +34,8 @@ Even worse, some problems are not parallelizable at all due to its very nature. 
 We want to run the function `fun` for each of the `N` values in `values`:
 
 ```{r define}
-N <- 70
-values <- rep(100000, N)
+values <- rep(100000, 70)
+N <- length(values)
 
 fun <- function(x) {
   # Generate the random coordinates
