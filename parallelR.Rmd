@@ -34,12 +34,24 @@ Even worse, some problems are not parallelizable at all due to its very nature. 
 We want to run the function `fun` for each of the `N` values in `values`:
 
 ```{r define}
-library(MASS) # Required for loading Boston dataset
-
 N <- 70
-values <- rep(100, N)
+values <- rep(100000, N)
 
-fun <- function(x) kmeans(Boston, 4, nstart = x)
+fun <- function(x) {
+  # Generate the random coordinates
+  xs <- runif(x, min = -1, max = 1)
+  ys <- runif(x, min = -1, max = 1)
+  
+  # Count how many are inside the circle
+  is_inside <- (xs^2 + ys^2 <= 1.0)
+  num_inside <- sum(is_inside, na.rm = FALSE)
+  
+  # Calculate the ratio and approximate pi
+  ratio <- num_inside / x
+  approx_pi <- 4 * ratio
+  
+  return(approx_pi)
+}
 ```
 
 ### A note about the examples
