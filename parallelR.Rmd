@@ -154,11 +154,12 @@ i <- 3
 times_df <- data.frame(
   id = c("Serial loop", "Serial foreach", "Serial lapply", "Par mclapply", "doParallel"),
   time = c(time_serial_loop[i], time_serial_foreach[i], time_serial_lapply[i], time_mclapply[i], time_doParallel[i]),
+  mode = c("Serial", "Serial", "Serial", "Parallel", "Parallel"),
   stringsAsFactors = TRUE
 )
 
 library(ggplot2)
-ggplot(times_df, aes(x = id, y = time)) + theme_bw() + geom_bar(stat = "identity")
+ggplot(times_df, aes(x = id, y = time, fill = mode)) + geom_bar(stat = "identity")
 ```
 
 ## Trying to parallelize non-parallelizable code
