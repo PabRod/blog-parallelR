@@ -57,13 +57,16 @@ max <- 20000000000 # Upper bound
 inputs <- sample(min:max, N) # List of N large integers
 ```
 
-In the following examples we will apply the same function to the same input, a vector of `N` large integers. We will do this using different forms of execution (three of them serial, two of them parallel). Later, we'll compare their performance.
+These two chunks of code define the _homeworks_ we want our computer to perform. Particularly, we want our computer to decide which integers from a list of inputs are prime, and store the results. We will do this in five different ways (three of them serial, two of them parallel). Later, we'll compare their performance.
 
-Note: the astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the reader to be able to try his/her own pieces of slow code inside `fun`.
+Note: the astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the reader to:
+
+1. Notice that the structure input -> function -> results is indeed VERY general
+2. Be able to try his/her own pieces of slow code inside the body of `fun`.
 
 ### A note about the examples
 
-Please note that, in the following examples, the structure below just times whatever is in `<code>` and stores this information in the variable `execution_time`, and doesn't have an effect on the parallelization.
+Please note that, in the following examples, the structure below just times whatever `<code>` is between the braces, and has nothing to do with the parallelization. 
 
 ```
 system.time({
@@ -75,13 +78,15 @@ system.time({
 
 ## Possibility 0: run serial
 
-### 0.1 Run serial with a loop:
+In this section we'll see three different ways of solving our problem running serial. That is, without using parallelization. The user is likely to be familiar with at least some of them.
+
+### 0.1 Run serial with a loop
 
 ```{r serial-loop}
 system.time({
   
   results <- rep(NA, N) # Initialize results vector  
-  for (i in 1:N) {
+  for (i in 1:N) { # Loop one by one along the input elements
     results[i] <- fun(inputs[i])
   }
   
@@ -97,7 +102,7 @@ library(foreach)
 
 system.time({
   
-  foreach (val = inputs, .combine = "c") %do% {
+  foreach (val = inputs, .combine = "c") %do% { # Loop one by one using foreach
     fun(val)
   } -> results
   
@@ -109,13 +114,17 @@ system.time({
 ```{r serial-lapply}
 system.time({
   
-  results <- lapply(inputs, fun)
+  results <- lapply(inputs, fun) # Hide your loop with an lapply function
 
 }) -> time_serial_lapply
 ```
 
 
-## Possibility 1: run parallel with `mclapply` (Linux only)
+## Do it parallel!
+
+In this section we'll finally use parallel programming to solve our problem.
+
+### Possibility 1: run parallel with `mclapply` (Linux only)
 
 `mclapply` is part of the `parallel` library. Rule of thumb: use it instead of `lapply`. If the code is parallelizable, it will do the magic:
 
@@ -133,7 +142,7 @@ system.time({
 
 Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a non-parallel `lapply`.
 
-## Possibility 2: run parallel with `doParallel` + `foreach`
+### Possibility 2: run parallel with `doParallel` + `foreach`
 
 Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Of course, the underlying process should be parallelizable. 
 
@@ -156,7 +165,10 @@ system.time({
 ```
 
 ## Compare results
-```{r}
+
+By plotting the execution times, we notice that the parallel methods performed significantly better than the serial ones:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 i <- 3
 times_df <- data.frame(
   case = c("0.1 Loop", "0.2 foreach", "0.3 lapply", "1 mclapply", "2 doParallel"),
