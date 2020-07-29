@@ -31,28 +31,35 @@ It may be tempting to think that doubling the amount of cores devoted to a given
 Even worse, some problems are not parallelizable at all due to its very nature. For instance, what if instead of a brick wall we want to make a brick stack, with only one brick per level? There is no point of laying the 3rd brick if the 1st and 2nd are not there already! We'll see one more example later. 
 
 ## Generate the task
-We want to run the function `fun` for each of the `N` values in `values`:
+A good example task for showing the advantages of parallelization would be one that:
 
-```{r define}
-values <- rep(100000, 70)
-N <- length(values)
+1. Is simple.
+2. Takes an appreciable amount of CPU time to be completed.
 
+The problem of deciding if a large integer is prime or not fulfills both charachteristics.
+
+It is a good idea to split a task into a function (describing WHAT to do) ...
+
+```{r define-fun}
 fun <- function(x) {
-  # Generate the random coordinates
-  xs <- runif(x, min = -1, max = 1)
-  ys <- runif(x, min = -1, max = 1)
-  
-  # Count how many are inside the circle
-  is_inside <- (xs^2 + ys^2 <= 1.0)
-  num_inside <- sum(is_inside, na.rm = FALSE)
-  
-  # Calculate the ratio and approximate pi
-  ratio <- num_inside / x
-  approx_pi <- 4 * ratio
-  
-  return(approx_pi)
+  numbers::isPrime(x) # Requires the package numbers
 }
 ```
+
+... and an input (describing to WHOM).
+
+```{r define-input}
+# Generate some large integers
+N <- 400 # Number of integers
+min <- 10000000000 # Lower bound
+max <- 20000000000 # Upper bound
+
+inputs <- sample(min:max, N) # List of N integers
+```
+
+In the following examples we will apply the same function to the same input, a vector of `N` large integers. We will do this using different forms of execution (three of them serial, two of them parallel). Later, we'll compare their performance.
+
+Note: the astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the reader to be able to try his/her own pieces of slow code inside `fun`.
 
 ### A note about the examples
 
@@ -73,7 +80,7 @@ system.time(
 ```{r serial-loop}
 system.time(
   for (i in 1:N) {
-    fun(values[i])
+    fun(inputs[i])
   }
 ) -> time_serial_loop
 
@@ -88,7 +95,7 @@ This command avoids us explicit typing of the index (compare with the `for` loop
 library(foreach)
 
 system.time(
-  foreach (val = values) %do% {
+  foreach (val = inputs) %do% {
     fun(val)
   }
 ) -> time_serial_foreach
@@ -100,7 +107,7 @@ print(time_serial_foreach)
 
 ```{r serial-lapply}
 system.time(
-  results <- lapply(values, fun)
+  results <- lapply(inputs, fun)
 ) -> time_serial_lapply
 
 print(time_serial_lapply)
@@ -118,7 +125,7 @@ library(parallel)
 # Run parallel
 numCores <- detectCores() # The number of cores is required by mclapply
 system.time(
-  results <- mclapply(values, fun, mc.cores = numCores)
+  results <- mclapply(inputs, fun, mc.cores = numCores)
 ) -> time_mclapply
 
 print(time_mclapply)
@@ -140,7 +147,7 @@ registerDoParallel(numCores)
 
 # Loop
 system.time(
-  foreach(val = values) %dopar% {
+  foreach(val = inputs) %dopar% {
     fun(val)
   }
 ) -> time_doParallel
@@ -176,33 +183,33 @@ It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields 
 fun <- function(x) {x + 1}
 
 N <- 6
-values <- rep(NA, N) # Initialize as (0, NA, NA, ..., NA)
-values[1] <- 0 
+inputs <- rep(NA, N) # Initialize as (0, NA, NA, ..., NA)
+inputs[1] <- 0 
 ```
 
 Using a serial loop everything works fine:
 
 ```{r, results='hide'}
 foreach(i = 2:N) %do% {
-  values[i] <- fun(values[i-1])
+  inputs[i] <- fun(inputs[i-1])
 }
 ```
 
 ```{r, echo=FALSE}
-print(values) # This hidden chunk just creates a nicer output
+print(inputs) # This hidden chunk just creates a nicer output
 ```
 
 Trying to force parallelization doesn't work, and also doesn't throw an error!
 
 ```{r, results='hide'}
-values <- rep(NA, N) # Initialize again
-values[1] <- 0
+inputs <- rep(NA, N) # Initialize again
+inputs[1] <- 0
 
 foreach(i = 2:N) %dopar% {
-  values[i] <- fun(values[i-1])
+  inputs[i] <- fun(inputs[i-1])
 }
 ```
 
 ```{r, echo=FALSE}
-print(values) # This hidden chunk just creates a nicer output
+print(inputs) # This hidden chunk just creates a nicer output
 ```
