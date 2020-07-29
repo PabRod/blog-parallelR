@@ -1,0 +1,1 @@
+# Quick introduction to parallel computing in R

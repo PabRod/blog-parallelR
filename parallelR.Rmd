@@ -1,0 +1,195 @@
+---
+title: "Parallelizing R code"
+author: "Pablo Rodríguez-Sánchez"
+date: "4/28/2020"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Parallelizing R code
+This tutorial is strongly based on [this one](https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html). 
+
+The main difference is merely pedagogical. I use a more compact approach and reuse the same problem again and again across all the examples.
+
+## Why parallelizing?
+
+Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other cores. The number of cores in your computer can be retrieved with the command:
+
+```{r number-cores}
+nCores <- parallel::detectCores() # Requires library(parallel)
+print(nCores)
+```
+
+When a program runs serial (as they usually run by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
+
+It may be tempting to think that doubling the amount of cores devoted to a given task will divide by two its execution time. But, as we'll see, this is far from true. Parallelization rarely behaves linearly. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
+
+Even worse, some problems are not parallelizable at all due to its very nature. For instance, what if instead of a brick wall we want to make a brick stack, with only one brick per level? There is no point of laying the 3rd brick if the 1st and 2nd are not there already! We'll see one more example later. 
+
+## Generate the task
+We want to run the function `fun` for each of the `N` values in `values`:
+
+```{r define}
+library(MASS) # Required for loading Boston dataset
+
+N <- 70
+values <- rep(100, N)
+
+fun <- function(x) rnorm(x)
+```
+
+### A note about the examples
+
+Please note that, in the following examples, the structure below just times whatever is in `<code>` and stores this information in the variable `execution_time`, and doesn't have an effect on the parallelization.
+
+```
+system.time(
+
+  <code>
+  
+) -> execution_time
+```
+
+## Possibility 0: run serial
+
+### 0.1 Run serial with a loop:
+
+```{r serial-loop}
+system.time(
+  for (i in 1:N) {
+    fun(values[i])
+  }
+) -> time_serial_loop
+
+print(time_serial_loop)
+```
+
+### 0.2 Run serial with `foreach`
+This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` may be a bit cumbersome, check the parameter `.combine` in the documentation for getting cleaner outputs.
+
+```{r serial-foreach}
+# Load the required libraries
+library(foreach)
+
+system.time(
+  foreach (val = values) %do% {
+    fun(val)
+  }
+) -> time_serial_foreach
+
+print(time_serial_foreach)
+```
+
+### 0.3 Run serial with `lapply`
+
+```{r serial-lapply}
+system.time(
+  results <- lapply(values, fun)
+) -> time_serial_lapply
+
+print(time_serial_lapply)
+```
+
+
+## Possibility 1: run parallel with `mclapply` (Linux only)
+
+`mclapply` is part of the `parallel` library. Rule of thumb: use it instead of `lapply`. If the code is parallelizable, it will do the magic:
+
+```{r mclapply}
+# Load the required libraries
+library(parallel)
+
+# Run parallel
+numCores <- detectCores() # The number of cores is required by mclapply
+system.time(
+  results <- mclapply(values, fun, mc.cores = numCores)
+) -> time_mclapply
+
+print(time_mclapply)
+```
+
+Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a non-parallel `lapply`.
+
+## Possibility 2: run parallel with `doParallel` + `foreach`
+
+Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Of course, the underlying process should be parallelizable. 
+
+```{r doParallel}
+# Load the required libraries
+library(iterators)
+library(doParallel)
+
+# Initialize
+registerDoParallel(numCores)
+
+# Loop
+system.time(
+  foreach(val = values) %dopar% {
+    fun(val)
+  }
+) -> time_doParallel
+
+print(time_doParallel)
+```
+
+## Compare results
+```{r}
+i <- 3
+times_df <- data.frame(
+  id = c("Serial loop", "Serial foreach", "Serial lapply", "Par mclapply", "doParallel"),
+  time = c(time_serial_loop[i], time_serial_foreach[i], time_serial_lapply[i], time_mclapply[i], time_doParallel[i]),
+  stringsAsFactors = TRUE
+)
+
+library(ggplot2)
+ggplot(times_df, aes(x = id, y = time)) + theme_bw() + geom_bar(stat = "identity")
+```
+
+## Trying to parallelize non-parallelizable code
+
+The loop structure of possibility 2 increases the chances of accidentally trying to parallelize code that is not parallelizable. In this subsection we'll use the iterator below as an example:
+
+$$
+x_{n} = x_{n-1} + 1
+$$
+
+It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain $x_n$, the value of the previous x (i.e.: $x_{n-1}$) is required. This operation is thus intrinsically serial, and cannot be parallelized.
+
+```{r}
+fun <- function(x) {x + 1}
+
+N <- 6
+values <- rep(NA, N) # Initialize as (0, NA, NA, ..., NA)
+values[1] <- 0 
+```
+
+Using a serial loop everything works fine:
+
+```{r, results='hide'}
+foreach(i = 2:N) %do% {
+  values[i] <- fun(values[i-1])
+}
+```
+
+```{r, echo=FALSE}
+print(values) # This hidden chunk just creates a nicer output
+```
+
+Trying to force parallelization doesn't work, and also doesn't throw an error!
+
+```{r, results='hide'}
+values <- rep(NA, N) # Initialize again
+values[1] <- 0
+
+foreach(i = 2:N) %dopar% {
+  values[i] <- fun(values[i-1])
+}
+```
+
+```{r, echo=FALSE}
+print(values) # This hidden chunk just creates a nicer output
+```
