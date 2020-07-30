@@ -17,7 +17,7 @@ The main difference is merely pedagogical. I use a more compact approach and reu
 
 ## Why parallelizing?
 
-Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other cores. The number of cores in your computer can be retrieved with the command:
+Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other cores. The number of cores in your computer can be retrieved from `R` with the command:
 
 ```{r number-cores}
 numCores <- parallel::detectCores() # Requires library(parallel)
@@ -50,14 +50,14 @@ fun <- function(x) {
 
 ```{r define-input}
 # Generate some large integers
-N <- 500 # Number of integers
-min <- 10000000000 # Lower bound
-max <- 20000000000 # Upper bound
+N <- 1000 # Number of integers
+min <- 100000 # Lower bound
+max <- 10000000000 # Upper bound
 
-inputs <- sample(min:max, N) # List of N large integers
+inputs <- sample(min:max, N) # List of N random large integers (between 1e5 and 1e10)
 ```
 
-These two chunks of code define the _homeworks_ we want our computer to perform. Particularly, we want our computer to decide which integers from a list of inputs are prime, and store the results. We will do this in five different ways (three of them serial, two of them parallel). Later, we'll compare their performance.
+These two chunks of code define the _homeworks_ we want to assign to our computer. Particularly, we want our computer to decide which integers from a list of inputs are prime, and store the results. We will do this in six different ways, two of them parallel. Later, we'll compare their performance.
 
 Note: the astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the reader to:
 
@@ -164,6 +164,16 @@ system.time({
 }) -> time_doParallel
 ```
 
+## Possibility 3
+
+```{r serial-vector}
+system.time({
+
+  results <- fun(inputs)
+  
+}) -> time_vector
+```
+
 ## Compare results
 
 By plotting the execution times, we notice that the parallel methods performed significantly better than the serial ones:
@@ -171,9 +181,9 @@ By plotting the execution times, we notice that the parallel methods performed s
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 i <- 3
 times_df <- data.frame(
-  case = c("0.1 Loop", "0.2 foreach", "0.3 lapply", "1 mclapply", "2 doParallel"),
-  time = c(time_serial_loop[i], time_serial_foreach[i], time_serial_lapply[i], time_mclapply[i], time_doParallel[i]),
-  mode = c("Serial", "Serial", "Serial", "Parallel", "Parallel"),
+  case = c("0.1 Loop", "0.2 foreach", "0.3 lapply", "1 mclapply", "2 doParallel", "3 Vector"),
+  time = c(time_serial_loop[i], time_serial_foreach[i], time_serial_lapply[i], time_mclapply[i], time_doParallel[i], time_vector[i]),
+  mode = c("Serial", "Serial", "Serial", "Parallel", "Parallel", "Serial vectorized"),
   stringsAsFactors = TRUE
 )
 
