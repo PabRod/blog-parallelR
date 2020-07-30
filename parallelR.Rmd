@@ -1,5 +1,5 @@
 ---
-title: "Parallelizing R code"
+title: "Minimal introduction to parallelizing loops in R"
 author: "Pablo Rodríguez-Sánchez"
 date: "4/28/2020"
 output:
@@ -10,10 +10,12 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Parallelizing R code
+# Minimal introduction to parallelizing loops in R
 This tutorial is strongly based on [this one](https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html). 
 
 The main difference is merely pedagogical. I use a more compact approach and reuse the same problem again and again across all the examples.
+
+Loops are, by definition, repetitive tasks. If the tasks are complex, or if the number of repetitions is high, loops may take a lot of time to run. There are several strategies to increase the execution speed of loops. In this short tutorial we will talk about one of them: parallelization.
 
 ## Why parallelizing?
 
@@ -24,11 +26,13 @@ numCores <- parallel::detectCores() # Requires library(parallel)
 print(numCores)
 ```
 
-When a program runs serial (as they usually run by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
+When a program runs serial (as they usually do by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
 
 It may be tempting to think that doubling the amount of cores devoted to a given task will divide by two its execution time. But, as we'll see, this is far from true. Parallelization rarely behaves linearly. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
 
-Even worse, some problems are not parallelizable at all due to its very nature. For instance, what if instead of a brick wall we want to make a brick stack, with only one brick per level? There is no point of laying the 3rd brick if the 1st and 2nd are not there already! We'll see one more example later. 
+More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point of laying the 3rd brick if the 1st and 2nd are not there already!
+
+But let's be nice and start with an example where everything works fine.
 
 ## Generate the task
 A good example task for showing the advantages of parallelization would be one that:
@@ -41,6 +45,7 @@ The problem of deciding if a large integer is prime or not fulfills both charach
 It is a good idea to split a task into a function (describing WHAT to do) ...
 
 ```{r define-fun}
+
 fun <- function(x) {
   numbers::isPrime(x) # Requires the package numbers
 }
@@ -94,7 +99,7 @@ system.time({
 ```
 
 ### 0.2 Run serial with `foreach`
-This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to force it into a vector.
+This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to return the output as a vector.
 
 ```{r serial-foreach}
 # Load the required libraries
@@ -164,7 +169,9 @@ system.time({
 }) -> time_doParallel
 ```
 
-## Possibility 3
+## Possibility 3: take advantage of vector functions
+
+Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line. More importantly, although running serial, these constructions often overperform parallel schemes. 
 
 ```{r serial-vector}
 system.time({
@@ -193,13 +200,13 @@ ggplot(times_df, aes(x = case, y = time, fill = mode)) + geom_bar(stat = "identi
 
 ## Trying to parallelize non-parallelizable code
 
-The loop structure of possibility 2 increases the chances of accidentally trying to parallelize code that is not parallelizable. In this subsection we'll use the iterator below as an example:
+In this subsection we'll use the iterator below as an example:
 
 $$
 x_{n} = x_{n-1} + 1
 $$
 
-It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain $x_n$, the value of the previous x (i.e.: $x_{n-1}$) is required. This operation is thus intrinsically serial, and cannot be parallelized.
+It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain $x_n$, the value of the previous x (i.e.: $x_{n-1}$) is required (remember the analogy of building a stack of bricks). This operation is thus intrinsically serial, and cannot be parallelized.
 
 ```{r}
 fun <- function(x) {x + 1}
@@ -221,7 +228,9 @@ foreach(i = 2:N) %do% {
 print(inputs) # This hidden chunk just creates a nicer output
 ```
 
-Trying to force parallelization doesn't work, and also doesn't throw an error!
+But what if we insist on parallelizing? After all, our serial loop is very similar to the `foreach` + `doParallel` one, so it is tempting to at least try.
+
+And what happens then? As expected, it simply doesn't work properly. And more worryingly, doesn't throw an error either!
 
 ```{r, results='hide'}
 inputs <- rep(NA, N) # Initialize again
