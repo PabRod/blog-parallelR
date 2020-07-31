@@ -12,9 +12,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Loops are, by definition, repetitive tasks. If the tasks are complex, or if the number of repetitions is high, loops may take a lot of time to run. There are several strategies to increase the execution speed of loops. In this short tutorial we will talk about one of them: parallelization.
 
-## Prerrequisites
+## Prerequisites
 
 This tutorial is self-contained. Some libraries may be required. If you are missing any, you can install it running `install.package('<library-name>')`, where `<library-name>` stands for the name of the library (for instance, `install.package('parallel')`).
+
+If you prefer to execute it line-by-line, please visit the [vignette version]([vignette version](https://github.com/PabRod/blog-parallelR)).
 
 ## Why parallelizing?
 
@@ -31,7 +33,7 @@ In the figure below, we see the CPU usage over time of my computer performing th
 
 ![](img/CPU.png)
 
-It may be tempting to think that doubling the amount of cores devoted to a given task will divide by two its execution time. But, as we'll see, it is not so simple. Parallelization rarely behaves linearly. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
+It may be surprising to notice that using 8 cores instead of one didn't multiply the speed by 8. This is normal, parallelization rarely behaves as linearly as we would like. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
 
 More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point of laying the 3rd brick if the 1st and 2nd are not there already!
 
@@ -145,7 +147,7 @@ system.time({
 }) -> time_mclapply
 ```
 
-Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a non-parallel `lapply`.
+Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a serial `lapply`.
 
 ### Possibility 2: run parallel with `doParallel` + `foreach`
 
@@ -171,7 +173,7 @@ system.time({
 
 ## Possibility 3: take advantage of vector functions
 
-Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line. More importantly, although running serial, these constructions often overperform parallel schemes.
+Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line.
 
 ```{r serial-vector}
 system.time({
@@ -180,6 +182,8 @@ system.time({
 
 }) -> time_vector
 ```
+
+More importantly, although running serial, vector functions often overperform parallel schemes. Why not use them always then? The quick answer is: we are not always lucky enough to have a function that admits a vector input.
 
 ## Compare results
 
@@ -210,7 +214,7 @@ $$
 x_{n} = x_{n-1} + 1
 $$
 
-It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain $x_n$, the value of the previous x (i.e.: $x_{n-1}$) is required (remember the analogy of building a stack of bricks). This operation is thus intrinsically serial, and cannot be parallelized.
+It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain the value of element $n$ (i.e.: $x_n$), the value of the previous x (i.e.: $x_{n-1}$) is required (remember the analogy of building a stack of bricks). This operation is thus intrinsically serial, paralellizing it would be the computational analogy of beginning to build a house from the roof.
 
 ```{r}
 fun <- function(x) {x + 1}
@@ -254,4 +258,4 @@ print(inputs) # This hidden chunk just creates a nicer output
 The astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the readers to:
 
 1. Notice that the structure input -> function -> results is indeed VERY general.
-2. Be able to try their own pieces of slow code inside the body of `fun`.
+2. Be able to try their own pieces of slow code inside the body of `fun` (this can be done comfortably using our [vignette](https://github.com/PabRod/blog-parallelR).
