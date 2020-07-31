@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Minimal introduction to parallelizing loops in R
-This tutorial is strongly based on [this one](https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html). 
+This tutorial is strongly based on [this one](https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html).
 
 The main difference is merely pedagogical. I use a more compact approach and reuse the same problem again and again across all the examples.
 
@@ -71,13 +71,13 @@ Note: the astute reader may have noticed that our function `fun` is a mere renam
 
 ### A note about the examples
 
-Please note that, in the following examples, the structure below just times whatever `<code>` is between the braces, and has nothing to do with the parallelization. 
+Please note that, in the following examples, the structure below just times whatever `<code>` is between the braces, and has nothing to do with the parallelization.
 
 ```
 system.time({
 
   <code>
-  
+
 }) -> execution_time
 ```
 
@@ -89,12 +89,12 @@ In this section we'll see three different ways of solving our problem running se
 
 ```{r serial-loop}
 system.time({
-  
+
   results <- rep(NA, N) # Initialize results vector  
   for (i in 1:N) { # Loop one by one along the input elements
     results[i] <- fun(inputs[i])
   }
-  
+
 }) -> time_serial_loop
 ```
 
@@ -106,11 +106,11 @@ This command avoids us explicit typing of the index (compare with the `for` loop
 library(foreach)
 
 system.time({
-  
+
   foreach (val = inputs, .combine = "c") %do% { # Loop one by one using foreach
     fun(val)
   } -> results
-  
+
 }) -> time_serial_foreach
 ```
 
@@ -118,7 +118,7 @@ system.time({
 
 ```{r serial-lapply}
 system.time({
-  
+
   results <- lapply(inputs, fun) # Hide your loop with an lapply function
 
 }) -> time_serial_lapply
@@ -139,7 +139,7 @@ library(parallel)
 
 # Run parallel
 system.time({
-  
+
   results <- mclapply(inputs, fun, mc.cores = numCores) # Note that the number of cores is required by mclapply
 
 }) -> time_mclapply
@@ -149,7 +149,7 @@ Unfortunately, this approach only works on Linux. If you are working on a Window
 
 ### Possibility 2: run parallel with `doParallel` + `foreach`
 
-Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Of course, the underlying process should be parallelizable. 
+Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Of course, the underlying process should be parallelizable.
 
 ```{r doParallel}
 # Load the required libraries
@@ -161,23 +161,23 @@ registerDoParallel(numCores)
 
 # Loop
 system.time({
-  
+
   foreach(val = inputs, .combine = "c") %dopar% {
     fun(val)
   } -> results
-  
+
 }) -> time_doParallel
 ```
 
 ## Possibility 3: take advantage of vector functions
 
-Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line. More importantly, although running serial, these constructions often overperform parallel schemes. 
+Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line. More importantly, although running serial, these constructions often overperform parallel schemes.
 
 ```{r serial-vector}
 system.time({
 
   results <- fun(inputs)
-  
+
 }) -> time_vector
 ```
 
@@ -198,6 +198,10 @@ library(ggplot2)
 ggplot(times_df, aes(x = case, y = time, fill = mode)) + geom_bar(stat = "identity") + labs(x = "", y = "time (s)", fill = "")
 ```
 
+Check a table below for a quick overview of each method:
+
+![](img/table.png){ width=50% }
+
 ## Trying to parallelize non-parallelizable code
 
 In this subsection we'll use the iterator below as an example:
@@ -213,7 +217,7 @@ fun <- function(x) {x + 1}
 
 N <- 6
 inputs <- rep(NA, N) # Initialize as (0, NA, NA, ..., NA)
-inputs[1] <- 0 
+inputs[1] <- 0
 ```
 
 Using a serial loop everything works fine:
