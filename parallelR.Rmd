@@ -1,5 +1,5 @@
 ---
-title: "Minimal introduction to parallelizing loops in R"
+title: "Parallel R in a nutshell"
 author: "Pablo Rodríguez-Sánchez"
 date: "4/28/2020"
 output:
@@ -10,16 +10,15 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Minimal introduction to parallelizing loops in R
-This tutorial is strongly based on [this one](https://nceas.github.io/oss-lessons/parallel-computing-in-r/parallel-computing-in-r.html).
-
-The main difference is merely pedagogical. I use a more compact approach and reuse the same problem again and again across all the examples.
-
 Loops are, by definition, repetitive tasks. If the tasks are complex, or if the number of repetitions is high, loops may take a lot of time to run. There are several strategies to increase the execution speed of loops. In this short tutorial we will talk about one of them: parallelization.
+
+## Prerrequisites
+
+This tutorial is self-contained. Some libraries may be required. If you are missing any, you can install it running `install.package('<library-name>')`, where `<library-name>` stands for the name of the library (for instance, `install.package('parallel')`).
 
 ## Why parallelizing?
 
-Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other cores. The number of cores in your computer can be retrieved from `R` with the command:
+Modern laptops typically have 4 or 8 cores. Each of them can be loosely thought of as an independent mini-computer, capable of doing tasks independently of the other ones. The number of cores in your computer can be retrieved from `R` with the command:
 
 ```{r number-cores}
 numCores <- parallel::detectCores() # Requires library(parallel)
@@ -28,21 +27,25 @@ print(numCores)
 
 When a program runs serial (as they usually do by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
 
-It may be tempting to think that doubling the amount of cores devoted to a given task will divide by two its execution time. But, as we'll see, this is far from true. Parallelization rarely behaves linearly. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
+In the figure below, we see the CPU usage over time of my computer performing the same task serial (highlighted in green) and parallel (red). Both processes performed the very same task and produced the same result, but the parallel one, recruting more cores, run three times faster.
+
+![](img/CPU.png)
+
+It may be tempting to think that doubling the amount of cores devoted to a given task will divide by two its execution time. But, as we'll see, it is not so simple. Parallelization rarely behaves linearly. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
 
 More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point of laying the 3rd brick if the 1st and 2nd are not there already!
 
-But let's be nice and start with an example where everything works fine.
+But don't worry about these details now. The example I've prepared for you is going to work fine.
 
-## Generate the task
-A good example task for showing the advantages of parallelization would be one that:
+## We need a task to do
+In this short introduction, I want to show different approaches, some of them serial and some of them parallel, to approach a parallelizable problem. A good example task for showing the advantages of parallelization would be one that:
 
 1. Is simple.
 2. Takes an appreciable amount of CPU time to be completed.
 
-The problem of deciding if a large integer is prime or not fulfills both charachteristics.
+The problem of [deciding if a large integer is prime or not](https://en.wikipedia.org/wiki/Primality_test) fulfills both charachteristics.
 
-It is a good idea to split a task into a function (describing WHAT to do) ...
+It will be a good idea to split our task into a function (describing WHAT to do) ...
 
 ```{r define-fun}
 
@@ -62,12 +65,7 @@ max <- 10000000000 # Upper bound
 inputs <- sample(min:max, N) # List of N random large integers (between 1e5 and 1e10)
 ```
 
-These two chunks of code define the _homeworks_ we want to assign to our computer. Particularly, we want our computer to decide which integers from a list of inputs are prime, and store the results. We will do this in six different ways, two of them parallel. Later, we'll compare their performance.
-
-Note: the astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the reader to:
-
-1. Notice that the structure input -> function -> results is indeed VERY general
-2. Be able to try his/her own pieces of slow code inside the body of `fun`.
+These two objects, `fun` and `inputs`, define the _homeworks_ we want to assign to our computer (in this case, to decide which integers from the list of inputs are prime). We also want our computer to store the results. We will do this in six different ways, two of them parallel. Later, we'll compare their performance.
 
 ### A note about the examples
 
@@ -116,6 +114,8 @@ system.time({
 
 ### 0.3 Run serial with `lapply`
 
+`lapply` is usually preferred over explicit `for` or `foreach` loops.
+
 ```{r serial-lapply}
 system.time({
 
@@ -127,7 +127,7 @@ system.time({
 
 ## Do it parallel!
 
-In this section we'll finally use parallel programming to solve our problem.
+And now, we'll finally use parallel programming to solve our problem.
 
 ### Possibility 1: run parallel with `mclapply` (Linux only)
 
@@ -149,7 +149,7 @@ Unfortunately, this approach only works on Linux. If you are working on a Window
 
 ### Possibility 2: run parallel with `doParallel` + `foreach`
 
-Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Of course, the underlying process should be parallelizable.
+Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Provided, of course, the underlying process is parallelizable.
 
 ```{r doParallel}
 # Load the required libraries
@@ -183,7 +183,7 @@ system.time({
 
 ## Compare results
 
-By plotting the execution times, we notice that the parallel methods performed significantly better than the serial ones:
+By plotting the execution times, we notice that the parallel methods performed significantly better than the serial ones. We also notice that the vector method performed even better (but keep in mind not all functions are vectorizable).
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 i <- 3
@@ -248,3 +248,10 @@ foreach(i = 2:N) %dopar% {
 ```{r, echo=FALSE}
 print(inputs) # This hidden chunk just creates a nicer output
 ```
+
+## Notes
+
+The astute reader may have noticed that our function `fun` is a mere renaming of the function `isPrime` contained in the package `numbers`. The reason for that is merely pedagogical: we want the readers to:
+
+1. Notice that the structure input -> function -> results is indeed VERY general.
+2. Be able to try their own pieces of slow code inside the body of `fun`.
