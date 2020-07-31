@@ -10,13 +10,15 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Loops are, by definition, repetitive tasks. If the tasks are complex, or if the number of repetitions is high, loops may take a lot of time to run. There are several strategies to increase the execution speed of loops. In this short tutorial we will talk about one of them: parallelization.
+Loops are, by definition, repetitive tasks. Although it is not part of the definitions, loops also tend to be boring. Luckily for us, computers are good at performing repetitive tasks, and they never complain about boredom.
+
+When the tasks are complex, or if the number of repetitions is high, loops may take a lot of time to run even in a computer.  There are several strategies to increase the execution speed of loops. In this short tutorial we will talk about one of them: parallelization.
 
 ## Prerequisites
 
 This tutorial is self-contained. Some libraries may be required. If you are missing any, you can install it running `install.package('<library-name>')`, where `<library-name>` stands for the name of the library (for instance, `install.package('parallel')`).
 
-If you prefer to execute it line-by-line, please visit the [vignette version]([vignette version](https://github.com/PabRod/blog-parallelR)).
+If you prefer to execute it line-by-line, please visit the [vignette version](https://github.com/PabRod/blog-parallelR)).
 
 ## Why parallelizing?
 
@@ -29,13 +31,13 @@ print(numCores)
 
 When a program runs serial (as they usually do by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
 
-In the figure below, we see the CPU usage over time of my computer performing the same task serial (highlighted in green) and parallel (red). Both processes performed the very same task and produced the same result, but the parallel one, recruting more cores, run three times faster.
+In the figure below, we see the CPU usage over time of my computer performing the same task serial (highlighted in green) and parallel (red). Both processes performed the very same task and produced the same result, but the parallel one, recruiting more cores, ran roughly three times faster.
 
 ![](img/CPU.png)
 
 It may be surprising to notice that using 8 cores instead of one didn't multiply the speed by 8. This is normal, parallelization rarely behaves as linearly as we would like. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
 
-More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point of laying the 3rd brick if the 1st and 2nd are not there already!
+More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point in laying the 3rd brick if the 1st and 2nd are not there already!
 
 But don't worry about these details now. The example I've prepared for you is going to work fine.
 
@@ -45,9 +47,11 @@ In this short introduction, I want to show different approaches, some of them se
 1. Is simple.
 2. Takes an appreciable amount of CPU time to be completed.
 
-The problem of [deciding if a large integer is prime or not](https://en.wikipedia.org/wiki/Primality_test) fulfills both charachteristics.
+The problem of [deciding if a large integer is prime or not](https://en.wikipedia.org/wiki/Primality_test) fulfills both characteristics
 
-It will be a good idea to split our task into a function (describing WHAT to do) ...
+It will be a good idea to split our task into a **function** (describing WHAT to do) and an **input** (describing to WHOM).
+
+In our case, the **function** performs a test on primality (see Notes at the end of this tutorial).
 
 ```{r define-fun}
 
@@ -56,7 +60,7 @@ fun <- function(x) {
 }
 ```
 
-... and an input (describing to WHOM).
+And the **input** is just a vector containing 1000 large integers (that I created programmatically just to not have to type then one-by-one).
 
 ```{r define-input}
 # Generate some large integers
@@ -67,7 +71,7 @@ max <- 10000000000 # Upper bound
 inputs <- sample(min:max, N) # List of N random large integers (between 1e5 and 1e10)
 ```
 
-These two objects, `fun` and `inputs`, define the _homeworks_ we want to assign to our computer (in this case, to decide which integers from the list of inputs are prime). We also want our computer to store the results. We will do this in six different ways, two of them parallel. Later, we'll compare their performance.
+These two objects, `fun` and `inputs`, define the _homework_ we want to assign to our computer (in this case, to decide which integers from the list of inputs are prime). We also want our computer to store the results. We will do this in six different ways, two of them parallel. Later, we'll compare their performance.
 
 ### A note about the examples
 
@@ -83,9 +87,11 @@ system.time({
 
 ## Possibility 0: run serial
 
-In this section we'll see three different ways of solving our problem running serial. That is, without using parallelization. The user is likely to be familiar with at least some of them.
+In this section we'll see three different ways of solving our problem by running serial. That is, without using parallelization. The user is likely to be familiar with at least some of them.
 
 ### 0.1 Run serial with a loop
+
+This is the most straightforward approach, although not very efficient. The basic structure is given in the snippet below.
 
 ```{r serial-loop}
 system.time({
@@ -99,7 +105,7 @@ system.time({
 ```
 
 ### 0.2 Run serial with `foreach`
-This command avoids us explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to return the output as a vector.
+The `foreach` package saves  us the explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to return the output as a vector.
 
 ```{r serial-foreach}
 # Load the required libraries
