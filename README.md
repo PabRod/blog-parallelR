@@ -1,5 +1,5 @@
-# Quick introduction to parallel computing in R
+# Additional material to Parallel R in a nutshell
 
-Parallel R in a nutshell will be published soon.
+The tutorial _Parallel R in a nutshell_ will be published soon.
 
 If you cannot wait, please visit [the vignette](parallelR.Rmd).
