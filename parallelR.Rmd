@@ -29,13 +29,13 @@ numCores <- parallel::detectCores() # Requires library(parallel)
 print(numCores)
 ```
 
-When a program runs serial (as they usually do by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
+When a program runs serially (as they usually do by default), only one core is recruited for performing the program's task. Recruiting more than one core for a given task is known as parallelization. The desired result of parallelizing a task is a reduction in its execution time. An analogy could be to build a wall by laying bricks alone, one by one (serial) as opposed to building it with the help of three friends (parallel with 4 "cores").
 
-In the figure below, we see the CPU usage over time of my computer performing the same task serial (highlighted in green) and parallel (red). Both processes performed the very same task and produced the same result, but the parallel one, recruiting more cores, ran roughly three times faster.
+In the figure below, we see the CPU usage over time of my computer performing the same task serially (highlighted in green) and in parallel (red). Both processes performed the very same task and produced the same result, but the parallel one, recruiting more cores, ran roughly three times faster.
 
 ![](img/CPU.png)
 
-It may be surprising to notice that using 8 cores instead of one didn't multiply the speed by 8. This is normal, parallelization rarely behaves as linearly as we would like. A reason for this is that the code, the input, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
+It may be surprising to notice that using 8 cores instead of one didn't multiply the speed by 8. This is normal, parallelization rarely behaves as linearly as we would like. A reason for this is that the code, and often also the data, has to be copied to each of the cores. The output of each core also has to be put together, and this also consumes time. Following the analogy of the 4 brick-layers, it is clear that building a wall with friends requires a bit of planning and coordination before starting laying the bricks (at least if we want the wall to be one wall, and not four disconnected pieces). Intuition also tells us that, while perhaps asking for the help of 4 friends may be a good idea, calling 256 friends could be an organizational nightmare. For a more formal approach to these ideas, check [Amdahl's law](https://en.wikipedia.org/wiki/Amdahl%27s_law).
 
 More importantly, some repetitive tasks are not parallelizable at all. For instance, what if instead of a brick wall we want to make a brick stack? There is no point in laying the 3rd brick if the 1st and 2nd are not there already!
 
@@ -85,11 +85,11 @@ system.time({
 }) -> execution_time
 ```
 
-## Possibility 0: run serial
+## Possibility 0: run serially
 
-In this section we'll see three different ways of solving our problem by running serial. That is, without using parallelization. The user is likely to be familiar with at least some of them.
+In this section we'll see three different ways of solving our problem by running serially. That is, without using parallelization. The user is likely to be familiar with at least some of them.
 
-### 0.1 Run serial with a loop
+### 0.1 Run serially with a loop
 
 This is the most straightforward approach, although not very efficient. The basic structure is given in the snippet below.
 
@@ -104,7 +104,7 @@ system.time({
 }) -> time_serial_loop
 ```
 
-### 0.2 Run serial with `foreach`
+### 0.2 Run serially with `foreach`
 The `foreach` package saves  us the explicit typing of the index (compare with the `for` loop in the previous example). The output of `foreach` is, by default, a list. We used the parameter `.combine = "c"` (concatenate) to return the output as a vector.
 
 ```{r serial-foreach}
@@ -120,7 +120,7 @@ system.time({
 }) -> time_serial_foreach
 ```
 
-### 0.3 Run serial with `lapply`
+### 0.3 Run serially with `lapply`
 
 `lapply` is usually preferred over explicit `for` or `foreach` loops.
 
@@ -133,11 +133,11 @@ system.time({
 ```
 
 
-## Do it parallel!
+## Do it in parallel!
 
 And now, we'll finally use parallel programming to solve our problem.
 
-### Possibility 1: run parallel with `mclapply` (Linux only)
+### Possibility 1: run in parallel with `mclapply` (Linux only)
 
 `mclapply` is part of the `parallel` library. Rule of thumb: use it instead of `lapply`. If the code is parallelizable, it will do the magic:
 
@@ -155,7 +155,7 @@ system.time({
 
 Unfortunately, this approach only works on Linux. If you are working on a Windows machine, it will perform as a serial `lapply`.
 
-### Possibility 2: run parallel with `doParallel` + `foreach`
+### Possibility 2: run in parallel with `doParallel` + `foreach`
 
 Rule of thumb: `doParallel` transforms a `foreach` loop into a parallel process. Provided, of course, the underlying process is parallelizable.
 
@@ -179,7 +179,7 @@ system.time({
 
 ## Possibility 3: take advantage of vector functions
 
-Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally-sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line.
+Most (but not all) of `R` functions can work with vectorized inputs. This means that the function accepts a vector of inputs and returns an equally sized vector of outputs. This allows to _hide_ the whole _loop_ in a single, easy to read line.
 
 ```{r serial-vector}
 system.time({
@@ -189,7 +189,7 @@ system.time({
 }) -> time_vector
 ```
 
-More importantly, although running serial, vector functions often overperform parallel schemes. Why not use them always then? The quick answer is: we are not always lucky enough to have a function that admits a vector input.
+More importantly, although running serially, vector functions often run faster parallel schemes. Why not use them always then? The quick answer is: we are not always lucky enough to have a function that accepts a vector input.
 
 ## Compare results
 
@@ -214,13 +214,13 @@ Check a table below for a quick overview of each method:
 
 ## Trying to parallelize non-parallelizable code
 
-In this subsection we'll use the iterator below as an example:
+In this subsection we'll use the expression below as an example:
 
 $$
 x_{n} = x_{n-1} + 1
 $$
 
-It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain the value of element $n$ (i.e.: $x_n$), the value of the previous x (i.e.: $x_{n-1}$) is required (remember the analogy of building a stack of bricks). This operation is thus intrinsically serial, paralellizing it would be the computational analogy of beginning to build a house from the roof.
+It is just a recipe to build a list of numbers by adding 1 to the previous number in the list. It is easy to see that, when initialized with $x_{0} = 0$, this iterator yields $\{0, 1, 2, 3, 4, ...\}$. Note that in order to obtain the value of element $n$ (i.e.: $x_n$), the value of the previous x (i.e.: $x_{n-1}$) is required (remember the analogy of building a stack of bricks). This operation is thus intrinsically serial, paralellizing it would be the computational analogy of beginning to build a house from the roof.
 
 ```{r}
 fun <- function(x) {x + 1}
@@ -265,3 +265,6 @@ The astute reader may have noticed that our function `fun` is a mere renaming of
 
 1. Notice that the structure input -> function -> results is indeed VERY general.
 2. Be able to try their own pieces of slow code inside the body of `fun` (this can be done comfortably using our [vignette](https://github.com/PabRod/blog-parallelR).
+
+## Acknowledgments
+I want to say thanks to [Lourens Veen](https://www.esciencecenter.nl/team/lourens-veen-msc/). His useful comments definitely improved the clarity of the final text.
